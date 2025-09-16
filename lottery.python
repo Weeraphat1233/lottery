@@ -2,39 +2,78 @@ import tkinter as tk
 from tkinter import ttk, messagebox
 import requests
 from bs4 import BeautifulSoup
+from datetime import datetime
 
 def fetch_lottery():
     try:
         url = "https://www.lottery.co.th/small"
-        r = requests.get(url)
+        r = requests.get(url, timeout=10)
         r.raise_for_status()
         soup = BeautifulSoup(r.text, "html.parser")
-
-        # ดึงเฉพาะข้อความผลรางวัลจากหน้าเว็บ
-        result_text = soup.get_text()
-
-        text_output.delete("1.0", tk.END)
-        text_output.insert(tk.END, result_text.strip())
-
+        full_text = soup.get_text()
+        lines = full_text.splitlines()
+        filtered = []
+        keywords = ["รางวัลที่ 1", "เลขหน้า 3 ตัว", "เลขท้าย 3 ตัว", "เลขท้าย 2 ตัว"]
+        for ln in lines:
+            ln = ln.strip()
+            for kw in keywords:
+                if kw in ln:
+                    filtered.append(ln)
+                    break
+        for key in result_labels:
+            result_labels[key].config(text=labels_text[key] + ": -")
+        if filtered:
+            for i, key in enumerate(keys_order):
+                if i < len(filtered):
+                    result_labels[key].config(text=filtered[i])
+            date_label.config(text="ดึงข้อมูลล่าสุด: " + datetime.now().strftime("%d/%m/%Y %H:%M"))
+        else:
+            messagebox.showinfo("ข้อมูลไม่ครบ", "ไม่พบผลรางวัลที่ต้องการ")
     except Exception as e:
-        messagebox.showerror("Error", f"ไม่สามารถดึงข้อมูลได้\n{e}")
+        messagebox.showerror("Error", f"ไม่สามารถดึงข้อมูลได้:\n{e}")
 
-# ---------- GUI ----------
 root = tk.Tk()
-root.title("ตรวจผลสลากกินแบ่ง")
-root.geometry("600x500")
-root.configure(bg="#f5f5f5")
+root.title("ผลสลากกินแบ่งรัฐบาล")
+root.geometry("520x400")
+root.configure(bg="#f8f8f8")
 
-frame = ttk.Frame(root, padding=10)
-frame.pack(fill=tk.BOTH, expand=True)
+style = ttk.Style(root)
+try:
+    style.theme_use('clam')
+except:
+    pass
 
-title = tk.Label(frame, text="ตรวจผลสลากกินแบ่งรัฐบาล", font=("TH Sarabun New", 20, "bold"))
-title.pack(pady=10)
+main_frame = ttk.Frame(root, padding=20)
+main_frame.pack(fill=tk.BOTH, expand=True)
 
-btn_fetch = ttk.Button(frame, text="ดึงผลล็อตเตอรี่", command=fetch_lottery)
-btn_fetch.pack(pady=5)
+title_label = tk.Label(main_frame, text="ผลสลากกินแบ่งรัฐบาล", font=("Arial", 22, "bold"), fg="#333", bg="#f8f8f8")
+title_label.pack(pady=(0,10))
 
-text_output = tk.Text(frame, wrap="word", height=20, width=70)
-text_output.pack(fill=tk.BOTH, expand=True, pady=10)
+date_label = tk.Label(main_frame, text="ดึงข้อมูลล่าสุด: -", font=("Arial", 10), fg="#555", bg="#f8f8f8")
+date_label.pack(pady=(0,10))
 
+results_frame = ttk.Frame(main_frame, borderwidth=2, relief="groove", padding=15)
+results_frame.pack(fill=tk.X, pady=5)
+
+keys_order = ["first_prize", "front3", "last3", "last2"]
+labels_text = {
+    "first_prize": "รางวัลที่ 1",
+    "front3": "เลขหน้า 3 ตัว",
+    "last3": "เลขท้าย 3 ตัว",
+    "last2": "เลขท้าย 2 ตัว",
+}
+
+result_labels = {}
+for key in keys_order:
+    if key == "first_prize":
+        lbl = tk.Label(results_frame, text=f"{labels_text[key]}: -", font=("Arial", 20, "bold"), fg="#b00020")
+    else:
+        lbl = tk.Label(results_frame, text=f"{labels_text[key]}: -", font=("Arial", 14), fg="#222")
+    lbl.pack(anchor="w", pady=5)
+    result_labels[key] = lbl
+
+btn_fetch = tk.Button(main_frame, text="รีเฟรชผลล่าสุด", font=("Arial", 14, "bold"), bg="#4CAF50", fg="white", activebackground="#388E3C", padx=10, pady=5, command=fetch_lottery)
+btn_fetch.pack(pady=15)
+
+fetch_lottery()
 root.mainloop()
